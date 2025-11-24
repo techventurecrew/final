@@ -1,0 +1,21 @@
+{
+  "name": "photobooth-kiosk-backend",
+  "version": "1.0.0",
+  "description": "Backend for Self-Service Photobooth Kiosk Application",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "keywords": ["photobooth", "kiosk", "express", "api"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "stripe": "^19.3.0",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "sharp": "^0.33.1",
+    "pdf-to-printer": "^5.5.0"
+  }
+}
