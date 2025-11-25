@@ -56,17 +56,17 @@ function CameraFilter({ updateSession }) {
                 value={brightness}
                 onChange={(e) => setBrightness(e.target.value)}
                 className="brightness-slider"
-                style={{
-                  writingMode: 'bt-lr',
-                  WebkitAppearance: 'slider-vertical',
-                  width: '12px',
-                  height: '300px',
-                  background: '#fff',
-                  borderRadius: '4px',
-                  outline: 'none',
-                  cursor: 'pointer',
-                  // margin: '2px'
-                }}
+              // style={{
+              //   writingMode: 'bt-lr',
+              //   WebkitAppearance: 'slider-vertical',
+              //   width: '12px',
+              //   height: '300px',
+              //   background: '#fff',
+              //   borderRadius: '4px',
+              //   outline: 'none',
+              //   cursor: 'pointer',
+              //   // margin: '2px'
+              // }}
               />
             </div>
           </div>
