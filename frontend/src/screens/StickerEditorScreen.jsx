@@ -1,7 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FallingSparkles, FloatingBubbles, FallingHearts, ConfettiRain, TwinklingStars } from '../components/Decoration';
-import { extractStripFromComposite } from '../utils/imageComposite';
 
 function StickerEditorScreen({ sessionData, updateSession }) {
     const navigate = useNavigate();
@@ -12,27 +11,6 @@ function StickerEditorScreen({ sessionData, updateSession }) {
     const canvasRef = useRef(null);
     const imageContainerRef = useRef(null);
     const imageRef = useRef(null);
-    // Display image (extract strip for strip-grid, otherwise use full composite)
-    const [displayImage, setDisplayImage] = useState(compositeImage);
-
-    // Extract strip for display if it's a strip-grid
-    useEffect(() => {
-        const grid = sessionData?.selectedGrid;
-        const isStripGrid = grid && (grid.id === 'strip-grid' || grid.isStripGrid);
-        
-        if (isStripGrid && compositeImage) {
-            extractStripFromComposite(compositeImage, 300)
-                .then(stripImage => {
-                    setDisplayImage(stripImage);
-                })
-                .catch(error => {
-                    console.error('Error extracting strip for display:', error);
-                    setDisplayImage(compositeImage);
-                });
-        } else {
-            setDisplayImage(compositeImage);
-        }
-    }, [compositeImage, sessionData?.selectedGrid]);
 
     // Sticker library - replace these URLs with your actual sticker image paths
     const stickerLibrary = [
@@ -54,7 +32,38 @@ function StickerEditorScreen({ sessionData, updateSession }) {
         { id: 'crown', url: '/images/stick14.png', name: 'Crown' },
         { id: 'sparkle', url: '/images/stick15.png', name: 'Sparkle' },
         { id: 'peace', url: '/images/stick16.png', name: 'Peace' },
-        { id: 'rainbow', url: '/images/stick17.png', name: 'Rainbow' }
+        { id: 'rainbow', url: '/images/stick17.png', name: 'teedy' },
+        { id: 'rainbow', url: '/images/stick18.png', name: 'christmas' },
+        { id: 'rainbow', url: '/images/stick19.png', name: 'besties' },
+        { id: 'rainbow', url: '/images/stick20.png', name: 'christmas' },
+        { id: 'rainbow', url: '/images/stick21.png', name: 'happy birthday' },
+        { id: 'rainbow', url: '/images/stick22.png', name: 'new year' },
+        { id: 'rainbow', url: '/images/stick23.png', name: 'new year' },
+        { id: 'rainbow', url: '/images/stick24.png', name: 'santa' },
+        { id: 'rainbow', url: '/images/stick25.png', name: 'party' },
+        { id: 'rainbow', url: '/images/stick26.png', name: 'party' },
+        { id: 'rainbow', url: '/images/stick27.png', name: 'teddy' },
+        { id: 'rainbow', url: '/images/stick28.png', name: 'new year' },
+        { id: 'rainbow', url: '/images/stick29.png', name: 'birthday' },
+        { id: 'rainbow', url: '/images/stick30.png', name: 'miss you' },
+        { id: 'rainbow', url: '/images/stick31.png', name: 'birthday' },
+        { id: 'rainbow', url: '/images/stick32.png', name: 'eat' },
+        { id: 'rainbow', url: '/images/stick33.png', name: 'best friend' },
+        { id: 'rainbow', url: '/images/stick34.png', name: 'party' },
+        { id: 'rainbow', url: '/images/stick35.png', name: 'couple' },
+        { id: 'rainbow', url: '/images/stick36.png', name: 'teddy' },
+        { id: 'rainbow', url: '/images/stick37.png', name: 'best friend' },
+        { id: 'rainbow', url: '/images/stick38.png', name: 'birthday' },
+        { id: 'rainbow', url: '/images/stick39.png', name: 'beer' },
+        { id: 'rainbow', url: '/images/stick40.png', name: 'new year' },
+        { id: 'rainbow', url: '/images/stick42.png', name: 'teddy' },
+        { id: 'rainbow', url: '/images/stick43.png', name: 'panda' },
+        { id: 'rainbow', url: '/images/stick44.png', name: 'Rainbow' },
+        { id: 'rainbow', url: '/images/stick45.png', name: 'besties' },
+        { id: 'rainbow', url: '/images/stick46.png', name: 'panda' },
+        { id: 'rainbow', url: '/images/stick47.png', name: 'birthday' },
+        { id: 'rainbow', url: '/images/stick48.png', name: 'birthday' },
+        { id: 'rainbow', url: '/images/stick49.png', name: 'birthday' },
     ];
 
     const addSticker = (stickerData) => {
@@ -163,10 +172,6 @@ function StickerEditorScreen({ sessionData, updateSession }) {
                 // Draw base image
                 ctx.drawImage(img, 0, 0);
 
-                // Check if this is a strip-grid
-                const grid = sessionData?.selectedGrid;
-                const isStripGrid = grid && (grid.id === 'strip-grid' || grid.isStripGrid);
-
                 // Get the actual displayed image dimensions and position
                 const displayImg = imageRef.current;
                 const container = imageContainerRef.current;
@@ -179,20 +184,9 @@ function StickerEditorScreen({ sessionData, updateSession }) {
                 const imgOffsetX = (container.offsetWidth - displayedWidth) / 2;
                 const imgOffsetY = (container.offsetHeight - displayedHeight) / 2;
 
-                // For strip-grid, the displayed image is the left strip (half width)
-                // So we need to scale X coordinate differently
-                let scaleX, scaleY;
-                if (isStripGrid) {
-                    // Displayed image is 600px wide (strip), actual composite is 1200px wide
-                    // But stickers are positioned on the strip, so we keep X scale at 1
-                    // and Y scale is normal
-                    scaleX = 1; // Don't scale X - stickers are already positioned correctly for the left strip
-                    scaleY = img.height / displayedHeight;
-                } else {
-                    // Normal scaling for other grids
-                    scaleX = img.width / displayedWidth;
-                    scaleY = img.height / displayedHeight;
-                }
+                // Scale factors from displayed size to actual image size
+                const scaleX = img.width / displayedWidth;
+                const scaleY = img.height / displayedHeight;
 
                 // Draw each sticker
                 stickers.forEach(sticker => {
@@ -315,7 +309,7 @@ function StickerEditorScreen({ sessionData, updateSession }) {
                             >
                                 <img
                                     ref={imageRef}
-                                    src={displayImage}
+                                    src={compositeImage}
                                     alt="Your photo"
                                     style={{
                                         maxWidth: "100%",
