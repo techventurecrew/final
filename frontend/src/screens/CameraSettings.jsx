@@ -5,13 +5,13 @@
  * - Adjust brightness, contrast, saturation, and sharpness via sliders
  * - Preview adjustments in real-time on camera feed
  * - Capture multiple photos for grid layouts (one per cell)
- * - Enable auto-capture with face detection
+ * - Enable auto-capture with 10-second countdown timer
  * - View and edit captured photos as thumbnails (delete to recapture)
  * 
  * Features:
  * - Real-time image adjustment preview
+ * - 10-second countdown timer for auto-capture
  * - Progress tracking for multi-photo grids
- * - Auto-capture with face detection
  * - Editable photo thumbnails gallery with delete functionality
  * - Camera settings persistence
  * 
@@ -28,33 +28,33 @@ import { generateCompositeFromPhotos } from '../utils/imageComposite';
 function CameraSettings({ updateSession, sessionData }) {
   const navigate = useNavigate();
 
-  // Image adjustment states: Real-time adjustment values
-  const [brightness, setBrightness] = useState(1); // Brightness multiplier (0.5-2)
-  const [contrast, setContrast] = useState(1); // Contrast multiplier (0.5-2)
-  const [saturation, setSaturation] = useState(1); // Color saturation (0-2)
-  const [sharpness, setSharpness] = useState(0); // Sharpness level (0-5, inverted as blur)
-  const [autoCapture, setAutoCapture] = useState(false); // Auto-capture toggle
-  const [faceDetected, setFaceDetected] = useState(false); // Face detection status
-  const [capturedPhotos, setCapturedPhotos] = useState([]); // Array of captured photo data URLs
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0); // Current photo index for grid layouts
-  const [hoveredPhotoIndex, setHoveredPhotoIndex] = useState(null); // Track hovered photo for delete button
+  // Image adjustment states
+  const [brightness, setBrightness] = useState(1);
+  const [contrast, setContrast] = useState(1);
+  const [saturation, setSaturation] = useState(1);
+  const [sharpness, setSharpness] = useState(0);
+  const [autoCapture, setAutoCapture] = useState(false);
+  const [faceDetected, setFaceDetected] = useState(false);
+  const [capturedPhotos, setCapturedPhotos] = useState([]);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [hoveredPhotoIndex, setHoveredPhotoIndex] = useState(null);
   const [isSavingComposite, setIsSavingComposite] = useState(false);
-  const webcamRef = useRef(null); // Reference to webcam component
-  const canvasRef = useRef(null); // Reference to canvas for face detection
+
+  // Timer states
+  const [timer, setTimer] = useState(10);
+  const [timerActive, setTimerActive] = useState(false);
+
+  const webcamRef = useRef(null);
+  const canvasRef = useRef(null);
+  const timerIntervalRef = useRef(null);
 
   /**
    * Calculate total number of cells needed based on selected grid layout
-   * Handles both old format (string ID) and new format (object with cols/rows)
-   * 
-   * @returns {number} Total number of photos to capture
    */
-  // Get total cells needed based on grid
   const getGridCellCount = () => {
     const grid = sessionData?.selectedGrid;
-    // Handle both old format (string) and new format (object)
     if (!grid) return 1;
 
-    // Strip-grid needs 4 photos (1 column × 4 rows, will be duplicated in composite)
     if (typeof grid === 'string') {
       if (grid === 'strip-grid') return 4;
     } else if (grid.id === 'strip-grid' || grid.isStripGrid) {
@@ -62,26 +62,21 @@ function CameraSettings({ updateSession, sessionData }) {
     }
 
     if (typeof grid === 'string') {
-      // Old format: string ID
       if (grid === '4x6-single') return 1;
       if (grid === '4x6-2cut') return 2;
       if (grid === '4x6-4cut') return 4;
       if (grid === '4x6-6cut') return 6;
-      // Legacy IDs for backward compatibility
       if (grid === '2x4-vertical-2') return 2;
       if (grid === '5x7-6cut') return 6;
       return 1;
     }
-    // New format: object with cols and rows
     if (grid.cols && grid.rows) {
       return grid.cols * grid.rows;
     }
-    // Fallback: try to get from ID
     if (grid.id === '4x6-single') return 1;
     if (grid.id === '4x6-2cut') return 2;
     if (grid.id === '4x6-4cut') return 4;
     if (grid.id === '4x6-6cut') return 6;
-    // Legacy IDs for backward compatibility
     if (grid.id === '2x4-vertical-2') return 2;
     if (grid.id === '5x7-6cut') return 6;
     return 1;
@@ -108,7 +103,59 @@ function CameraSettings({ updateSession, sessionData }) {
     }
   };
 
-  // Debug: log grid info when component mounts or grid changes
+  /**
+   * Start countdown timer for automatic photo capture
+   */
+  const startTimer = () => {
+    setTimer(10);
+    setTimerActive(true);
+  };
+
+  /**
+   * Cancel the active timer
+   */
+  const cancelTimer = () => {
+    setTimerActive(false);
+    setTimer(10);
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+    }
+  };
+
+  // Timer countdown effect
+  useEffect(() => {
+    if (!timerActive) return;
+
+    timerIntervalRef.current = setInterval(() => {
+      setTimer((prevTimer) => {
+        if (prevTimer <= 1) {
+          setTimerActive(false);
+          // Auto-capture when timer reaches 0
+          setTimeout(() => {
+            handleCapture();
+          }, 100);
+          return 10;
+        }
+        return prevTimer - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+    };
+  }, [timerActive]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     console.log('CameraSettings - Grid info:', {
       selectedGrid: sessionData?.selectedGrid,
@@ -137,7 +184,6 @@ function CameraSettings({ updateSession, sessionData }) {
             canvas.height = img.height;
             ctx.drawImage(img, 0, 0);
 
-            // Simple brightness-based face detection
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imageData.data;
             let facePixels = 0;
@@ -146,7 +192,6 @@ function CameraSettings({ updateSession, sessionData }) {
               const r = data[i];
               const g = data[i + 1];
               const b = data[i + 2];
-              // Detect skin tone range (simplified)
               if (r > 95 && g > 40 && b > 20 && r > g && r > b) {
                 facePixels++;
               }
@@ -173,7 +218,6 @@ function CameraSettings({ updateSession, sessionData }) {
     navigate('/camera-filter');
   };
 
-  // Get camera filter from session data (set in CameraFilter.jsx)
   const getCameraFilter = () => {
     const filterStyles = {
       none: 'none',
@@ -185,12 +229,9 @@ function CameraSettings({ updateSession, sessionData }) {
     const cameraFilter = sessionData?.cameraFilter || 'none';
     const cameraBrightness = sessionData?.brightness || 100;
     const baseFilter = filterStyles[cameraFilter];
-    // Convert percentage brightness to multiplier (100% = 1.0)
     const cameraBrightnessMultiplier = cameraBrightness / 100;
-    // Combine with camera settings brightness (multiply them)
     const combinedBrightness = cameraBrightnessMultiplier * parseFloat(brightness);
 
-    // Build filter string with base filter and combined brightness
     let filterParts = [];
     if (baseFilter !== 'none') {
       filterParts.push(baseFilter);
@@ -202,12 +243,16 @@ function CameraSettings({ updateSession, sessionData }) {
     return filterParts.join(' ');
   };
 
-  // Combine camera filter with camera settings for preview and capture
   const getCombinedFilter = () => {
     return getCameraFilter();
   };
 
   const handleCapture = async () => {
+    // Cancel timer if it's running
+    if (timerActive) {
+      cancelTimer();
+    }
+
     const settings = { brightness: parseFloat(brightness), contrast: parseFloat(contrast), saturation: parseFloat(saturation), sharpness: parseFloat(sharpness), autoCapture };
     updateSession({ cameraSettings: settings });
 
@@ -225,7 +270,6 @@ function CameraSettings({ updateSession, sessionData }) {
 
         canvas.width = w;
         canvas.height = h;
-        // Apply both camera filter and camera settings
         ctx.filter = getCombinedFilter();
         ctx.drawImage(img, 0, 0);
 
@@ -233,11 +277,9 @@ function CameraSettings({ updateSession, sessionData }) {
         const newPhotos = [...capturedPhotos, photoData];
         setCapturedPhotos(newPhotos);
 
-        // Update photo index to reflect next photo to capture
         const nextIndex = newPhotos.length;
         setCurrentPhotoIndex(nextIndex);
 
-        // If all photos captured, save and proceed
         if (newPhotos.length === totalCells) {
           buildCompositeAndContinue(newPhotos);
         }
@@ -249,7 +291,6 @@ function CameraSettings({ updateSession, sessionData }) {
 
   /**
    * Delete a specific captured photo by index
-   * @param {number} index - Index of photo to delete
    */
   const handleDeletePhoto = (index) => {
     const updatedPhotos = capturedPhotos.filter((_, i) => i !== index);
@@ -287,7 +328,7 @@ function CameraSettings({ updateSession, sessionData }) {
 
         <div className="grid grid-cols-2 gap-3 flex-1 overflow-hidden mx-4">
           <div className="overflow-y-auto pr-2">
-            {/* Show captured photos thumbnails - Now editable */}
+            {/* Show captured photos thumbnails */}
             {capturedPhotos.length > 0 && (
               <div className="mt-2">
                 <h4 className="font-semibold text-sm mb-1" style={{ fontFamily: "'Poppins', sans-serif" }}>Captured ({capturedPhotos.length}/{totalCells})</h4>
@@ -327,7 +368,7 @@ function CameraSettings({ updateSession, sessionData }) {
 
           <div className="flex flex-col">
             <h3 className="font-semibold text-md text-center mb-1" style={{ fontFamily: "'Poppins', sans-serif" }}>Preview</h3>
-            <div className="bg-gray-900 rounded-lg overflow-hidden p-1 flex-1 flex items-center justify-center">
+            <div className="bg-gray-900 rounded-lg overflow-hidden p-1 flex-1 flex items-center justify-center relative">
               <Webcam
                 ref={webcamRef}
                 audio={false}
@@ -339,6 +380,24 @@ function CameraSettings({ updateSession, sessionData }) {
                 }}
                 style={{ width: '100%', height: '100%', objectFit: 'contain', filter: filter }}
               />
+
+              {/* Timer Display */}
+              {timerActive && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div
+                    style={{
+                      fontSize: '80px',
+                      fontWeight: 'bold',
+                      color: timer <= 3 ? '#ff4444' : '#ffffff',
+                      textShadow: '0 0 20px rgba(0,0,0,0.8)',
+                      fontFamily: "'Poppins', sans-serif",
+                      animation: timer <= 3 ? 'pulse 0.5s infinite' : 'none'
+                    }}
+                  >
+                    {timer}
+                  </div>
+                </div>
+              )}
             </div>
             <p className="text-xs text-gray-600 mt-1" style={{ fontFamily: "'Poppins', sans-serif" }}>Real-time adjustments will apply.</p>
 
@@ -357,6 +416,7 @@ function CameraSettings({ updateSession, sessionData }) {
 
         <div className="flex justify-between gap-2">
           <button onClick={() => {
+            cancelTimer();
             if (capturedPhotos.length > 0) {
               const updatedPhotos = capturedPhotos.slice(0, -1);
               setCapturedPhotos(updatedPhotos);
@@ -371,21 +431,52 @@ function CameraSettings({ updateSession, sessionData }) {
             {!isComplete && (
               <button onClick={apply} className="px-3 py-1 rounded-lg bg-rose-300 font-bold text-xs hover:bg-rose-400" style={{ fontFamily: "'Poppins', sans-serif" }}>Skip Capture</button>
             )}
-            <button
-              onClick={handleCapture}
-              disabled={isComplete || isSavingComposite}
-              className={`px-4 py-2 rounded-lg font-bold text-white text-sm ${(isComplete || isSavingComposite) ? 'bg-gray-400 cursor-not-allowed' : 'bg-rose-500 hover:bg-rose-600 shadow-lg'}`}
-              style={{ fontFamily: "'Poppins', sans-serif" }}
-            >
-              {isSavingComposite
-                ? 'Preparing photos…'
-                : isComplete
-                  ? 'Complete ✓'
-                  : `📸 Capture Photo ${capturedPhotos.length + 1}/${totalCells}`}
-            </button>
+
+            {/* Timer Controls */}
+            {timerActive ? (
+              <button
+                onClick={cancelTimer}
+                className="px-4 py-2 rounded-lg font-bold text-white text-sm bg-red-500 hover:bg-red-600 shadow-lg"
+                style={{ fontFamily: "'Poppins', sans-serif" }}
+              >
+                ⏹️ Cancel Timer
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={startTimer}
+                  disabled={isComplete || isSavingComposite}
+                  className={`px-4 py-2 rounded-lg font-bold text-white text-sm ${(isComplete || isSavingComposite) ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600 shadow-lg'}`}
+                  style={{ fontFamily: "'Poppins', sans-serif" }}
+                >
+                  ⏱️ Timer (10s)
+                </button>
+
+                <button
+                  onClick={handleCapture}
+                  disabled={isComplete || isSavingComposite}
+                  className={`px-4 py-2 rounded-lg font-bold text-white text-sm ${(isComplete || isSavingComposite) ? 'bg-gray-400 cursor-not-allowed' : 'bg-rose-500 hover:bg-rose-600 shadow-lg'}`}
+                  style={{ fontFamily: "'Poppins', sans-serif" }}
+                >
+                  {isSavingComposite
+                    ? 'Preparing photos…'
+                    : isComplete
+                      ? 'Complete ✓'
+                      : `📸 Capture Photo ${capturedPhotos.length + 1}/${totalCells}`}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
+
+      {/* CSS for pulse animation */}
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      `}</style>
     </div>
   );
 }

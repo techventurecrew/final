@@ -135,7 +135,7 @@ function GridSelection({ updateSession }) {
               }}
             >
               {/* Visual grid preview: Shows layout structure */}
-              <div className="w-full flex-1 flex items-center justify-center mb-1" style={{ minHeight: 0, maxHeight: '100%', overflow: 'hidden' }}>
+              <div className="w-full flex-1 flex items-center justify-center mb-2" style={{ minHeight: 0, maxHeight: '100%', overflow: 'hidden' }}>
                 {renderGridPreview(grid)}
               </div>
 
