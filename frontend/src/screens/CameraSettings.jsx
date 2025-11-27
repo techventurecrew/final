@@ -122,6 +122,17 @@ function CameraSettings({ updateSession, sessionData }) {
     }
   };
 
+  // Auto-start timer when component mounts or photos change (if not complete)
+  useEffect(() => {
+    if (!isComplete && capturedPhotos.length < totalCells) {
+      // Start timer automatically after a short delay
+      const startDelay = setTimeout(() => {
+        startTimer();
+      }, 500);
+      return () => clearTimeout(startDelay);
+    }
+  }, [capturedPhotos.length, totalCells, isComplete]);
+
   // Timer countdown effect
   useEffect(() => {
     if (!timerActive) return;
@@ -432,8 +443,8 @@ function CameraSettings({ updateSession, sessionData }) {
               <button onClick={apply} className="px-3 py-1 rounded-lg bg-rose-300 font-bold text-xs hover:bg-rose-400" style={{ fontFamily: "'Poppins', sans-serif" }}>Skip Capture</button>
             )}
 
-            {/* Timer Controls */}
-            {timerActive ? (
+            {/* Cancel Timer Button - Only show when timer is active */}
+            {timerActive && (
               <button
                 onClick={cancelTimer}
                 className="px-4 py-2 rounded-lg font-bold text-white text-sm bg-red-500 hover:bg-red-600 shadow-lg"
@@ -441,30 +452,22 @@ function CameraSettings({ updateSession, sessionData }) {
               >
                 ⏹️ Cancel Timer
               </button>
-            ) : (
-              <>
-                <button
-                  onClick={startTimer}
-                  disabled={isComplete || isSavingComposite}
-                  className={`px-4 py-2 rounded-lg font-bold text-white text-sm ${(isComplete || isSavingComposite) ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600 shadow-lg'}`}
-                  style={{ fontFamily: "'Poppins', sans-serif" }}
-                >
-                  ⏱️ Timer (10s)
-                </button>
+            )}
 
-                <button
-                  onClick={handleCapture}
-                  disabled={isComplete || isSavingComposite}
-                  className={`px-4 py-2 rounded-lg font-bold text-white text-sm ${(isComplete || isSavingComposite) ? 'bg-gray-400 cursor-not-allowed' : 'bg-rose-500 hover:bg-rose-600 shadow-lg'}`}
-                  style={{ fontFamily: "'Poppins', sans-serif" }}
-                >
-                  {isSavingComposite
-                    ? 'Preparing photos…'
-                    : isComplete
-                      ? 'Complete ✓'
-                      : `📸 Capture Photo ${capturedPhotos.length + 1}/${totalCells}`}
-                </button>
-              </>
+            {/* Manual Capture Button - Hidden when timer is active */}
+            {!timerActive && (
+              <button
+                onClick={handleCapture}
+                disabled={isComplete || isSavingComposite}
+                className={`px-4 py-2 rounded-lg font-bold text-white text-sm ${(isComplete || isSavingComposite) ? 'bg-gray-400 cursor-not-allowed' : 'bg-rose-500 hover:bg-rose-600 shadow-lg'}`}
+                style={{ fontFamily: "'Poppins', sans-serif" }}
+              >
+                {isSavingComposite
+                  ? 'Preparing photos…'
+                  : isComplete
+                    ? 'Complete ✓'
+                    : `📸 Capture Now`}
+              </button>
             )}
           </div>
         </div>
