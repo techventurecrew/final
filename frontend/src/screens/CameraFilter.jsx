@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Webcam from 'react-webcam';
 import { FallingSparkles, FloatingBubbles, FallingHearts, ConfettiRain, TwinklingStars } from '../components/Decoration';
@@ -7,6 +7,8 @@ import './CameraFilter.css'; // Add this import for custom fonts
 function CameraFilter({ updateSession }) {
   const [filter, setFilter] = useState('none');
   const [brightness, setBrightness] = useState(100);
+  const [previewImage, setPreviewImage] = useState(null);
+  const webcamRef = useRef(null);
   const navigate = useNavigate();
 
   const apply = () => {
@@ -21,6 +23,29 @@ function CameraFilter({ updateSession }) {
     cool: 'hue-rotate(200deg) saturate(1.1)',
     mono: 'grayscale(1)',
   };
+
+  // Capture webcam frame periodically for filter previews
+  useEffect(() => {
+    const captureFrame = () => {
+      if (webcamRef.current) {
+        const imageSrc = webcamRef.current.getScreenshot();
+        if (imageSrc) {
+          setPreviewImage(imageSrc);
+        }
+      }
+    };
+
+    // Capture initial frame after a short delay to ensure webcam is ready
+    const initialTimeout = setTimeout(captureFrame, 500);
+
+    // Update preview every 500ms for live preview effect
+    const interval = setInterval(captureFrame, 500);
+
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
+  }, []);
 
   const getCombinedFilter = () => {
     const baseFilter = filterStyles[filter];
@@ -80,6 +105,7 @@ function CameraFilter({ updateSession }) {
               }}
               className="rounded-lg overflow-hidden  flex-1 flex items-center justify-center">
               <Webcam
+                ref={webcamRef}
                 audio={false}
                 screenshotFormat="image/jpeg"
                 videoConstraints={{ facingMode: 'user', height: { ideal: 1280 }, width: { ideal: 720 } }}
@@ -112,8 +138,14 @@ function CameraFilter({ updateSession }) {
                   style={{ fontFamily: "'Poppins', sans-serif" }}
                 >
                   <div
-                    style={{ filter: filterStyles[key] }}
-                    className="w-[100%] h-16 bg-gray-900 rounded-lg "
+                    style={{ 
+                      filter: filterStyles[key],
+                      backgroundImage: previewImage ? `url(${previewImage})` : 'none',
+                      backgroundColor: previewImage ? 'transparent' : '#111827',
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center'
+                    }}
+                    className="w-[100%] h-16 rounded-lg"
                   />
                   <div className="capitalize text-xs">{key}</div>
                 </button>
